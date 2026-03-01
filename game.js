@@ -378,8 +378,8 @@
     function spawnBoostOrb(z, y) {
         const group = new THREE.Group();
 
-        // Outer glow (smaller)
-        const glowGeo = new THREE.SphereGeometry(0.4, 12, 12);
+        // Outer glow
+        const glowGeo = new THREE.SphereGeometry(0.7, 12, 12);
         const glowMat = new THREE.MeshBasicMaterial({
             color: 0xffdd00,
             transparent: true,
@@ -387,8 +387,8 @@
         });
         group.add(new THREE.Mesh(glowGeo, glowMat));
 
-        // Inner star (smaller)
-        const orbGeo = new THREE.OctahedronGeometry(0.2, 0);
+        // Inner star
+        const orbGeo = new THREE.OctahedronGeometry(0.35, 0);
         const orbMat = new THREE.MeshPhongMaterial({
             color: 0xffaa00,
             emissive: 0xff6600,
@@ -801,7 +801,9 @@
         for (let i = boostOrbs.length - 1; i >= 0; i--) {
             const orb = boostOrbs[i];
             if (orb.userData.collected) continue;
-            if (Math.abs(orb.position.z) < 1.0 && Math.abs(orb.position.y - state.playerY) < 1.0) {
+            // Generous hitbox: ±1.8 on Z (covers high-speed traversal),
+            // ±1.5 on Y (matches visual glow perception from 3rd person camera)
+            if (Math.abs(orb.position.z) < 1.8 && Math.abs(orb.position.y - state.playerY) < 1.5) {
                 orb.userData.collected = true;
                 scene.remove(orb);
                 boostOrbs.splice(i, 1);

@@ -3,21 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Flappy Bird 3D — First Person</title>
+    <title>NyanBird</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <div id="flash-overlay"></div>
 
     <!-- UI Overlay -->
     <div id="ui-overlay">
         <!-- Start Screen -->
         <div id="start-screen" class="screen active">
-            <h1>FLAPPY BIRD <span class="accent">3D</span></h1>
-            <p class="subtitle">First Person Mode</p>
+            <h1>NYAN<span class="accent">BIRD</span></h1>
+            <p class="subtitle">Third Person Edition</p>
             <div class="instructions">
                 <p>Tap / Space / Click to flap</p>
                 <p>Fly through the gaps between pipes</p>
+                <p>Collect golden orbs for BOOST!</p>
             </div>
             <button id="start-btn" class="btn">START</button>
         </div>
@@ -25,6 +28,7 @@
         <!-- HUD -->
         <div id="hud" class="hidden">
             <div id="score-display">0</div>
+            <div id="boost-indicator" class="hidden">BOOST!</div>
         </div>
 
         <!-- Game Over Screen -->
@@ -43,6 +47,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="game.js"></script>
+    <script src="game.js?v=6"></script>
 </body>
 </html>

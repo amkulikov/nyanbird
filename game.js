@@ -719,24 +719,55 @@
     }
 
     // ==================== POST-BOOST PIPE CLEARANCE ====================
+    const RAINBOW_COLORS = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0088ff, 0x8800ff];
+
     function clearPipesAfterBoost() {
-        // After boost ends, push any pipe that is close ahead of the bird
-        // far enough away so the player has at least one full pipeSpacing
-        // of reaction distance. "Close ahead" = z in range [-safeDistance, 0).
+        // Mark nearby pipes as rainbow ghosts instead of removing them
         const safeDistance = CONFIG.pipeSpacing * 1.2;
         for (const pipe of pipes) {
             const z = pipe.position.z;
-            // Pipe is ahead (negative z) and within unsafe range
             if (z < 0 && z > -safeDistance) {
-                // Recycle it — move it far back behind the furthest pipe
-                const furthestZ = pipes.reduce(
-                    (m, p) => Math.min(m, p.position.z),
-                    Infinity
-                );
-                scene.remove(pipe);
-                const idx = pipes.indexOf(pipe);
-                const newPipe = createPipe(furthestZ - CONFIG.pipeSpacing);
-                pipes[idx] = newPipe;
+                pipe.userData.rainbow = true;
+                pipe.userData.rainbowTime = 0;
+                // Make all child meshes transparent and rainbow-ready
+                pipe.traverse((child) => {
+                    if (child.isMesh) {
+                        // Clone material so we don't affect other pipes
+                        child.material = child.material.clone();
+                        child.material.transparent = true;
+                    }
+                });
+            }
+        }
+    }
+
+    function updateRainbowPipes(dt, now) {
+        for (const pipe of pipes) {
+            if (!pipe.userData.rainbow) continue;
+            pipe.userData.rainbowTime += dt;
+
+            // Cycle rainbow hue + pulse opacity between 0.15 and 0.6
+            const t = pipe.userData.rainbowTime;
+            const opacity = 0.15 + 0.45 * (0.5 + 0.5 * Math.sin(t * 12));
+            const colorIdx = Math.floor((now * 6) % RAINBOW_COLORS.length);
+
+            pipe.traverse((child) => {
+                if (child.isMesh) {
+                    child.material.color.setHex(RAINBOW_COLORS[(colorIdx + (child.id % 3)) % RAINBOW_COLORS.length]);
+                    child.material.opacity = opacity;
+                }
+            });
+
+            // After 3 seconds, restore to normal solid pipe
+            if (t > 3) {
+                pipe.userData.rainbow = false;
+                pipe.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material.color.setHex(CONFIG.pipeColor);
+                        child.material.opacity = 1;
+                        child.material.transparent = false;
+                    }
+                });
             }
         }
     }
@@ -751,8 +782,9 @@
         // Ground / ceiling
         if (py - r <= CONFIG.groundY || py + r >= CONFIG.ceilingY) return true;
 
-        // Pipes
+        // Pipes (skip rainbow ghost pipes)
         for (const pipe of pipes) {
+            if (pipe.userData.rainbow) continue;
             const pz = pipe.position.z;
             const halfDepth = CONFIG.pipeDepth / 2 + r;
 
@@ -937,6 +969,9 @@
                 }
             }
             ambientParticles.geometry.attributes.position.needsUpdate = true;
+
+            // Animate rainbow ghost pipes
+            updateRainbowPipes(dt, now);
 
             // Collision
             if (checkCollision()) gameOver();

@@ -25,7 +25,7 @@
         gapPerLevel: 0.15,
 
         // Boost
-        boostDuration: 5,
+        boostDuration: 10,
         boostSpeedMul: 2.2,
         boostOrbChance: 0.3,
 
@@ -114,17 +114,17 @@
     );
 
     // ==================== LIGHTING ====================
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffeedd, 0.9);
-    dirLight.position.set(5, 15, 10);
+    const dirLight = new THREE.DirectionalLight(0xffeedd, 0.8);
+    dirLight.position.set(5, 15, -10);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 1024;
     dirLight.shadow.mapSize.height = 1024;
     scene.add(dirLight);
 
-    const pointLight = new THREE.PointLight(0xffffff, 0.3, 30);
+    const pointLight = new THREE.PointLight(0xffffff, 0.15, 20);
     scene.add(pointLight);
 
     // ==================== MATERIALS ====================
@@ -132,15 +132,15 @@
         color: CONFIG.pipeColor,
         emissive: CONFIG.pipeEmissive,
         emissiveIntensity: 0.2,
-        shininess: 80,
-        specular: 0x88ff88,
+        shininess: 30,
+        specular: 0x224422,
     });
     const pipeCapMat = new THREE.MeshPhongMaterial({
         color: 0x3ab53e,
         emissive: 0x145a16,
         emissiveIntensity: 0.2,
-        shininess: 100,
-        specular: 0x88ff88,
+        shininess: 40,
+        specular: 0x224422,
     });
     const groundMat = new THREE.MeshPhongMaterial({
         color: CONFIG.groundColor,
@@ -748,6 +748,29 @@
         if (boostIndicator) boostIndicator.classList.remove('hidden');
     }
 
+    // ==================== POST-BOOST PIPE CLEARANCE ====================
+    function clearPipesAfterBoost() {
+        // After boost ends, push any pipe that is close ahead of the bird
+        // far enough away so the player has at least one full pipeSpacing
+        // of reaction distance. "Close ahead" = z in range [-safeDistance, 0).
+        const safeDistance = CONFIG.pipeSpacing * 1.2;
+        for (const pipe of pipes) {
+            const z = pipe.position.z;
+            // Pipe is ahead (negative z) and within unsafe range
+            if (z < 0 && z > -safeDistance) {
+                // Recycle it — move it far back behind the furthest pipe
+                const furthestZ = pipes.reduce(
+                    (m, p) => Math.min(m, p.position.z),
+                    Infinity
+                );
+                scene.remove(pipe);
+                const idx = pipes.indexOf(pipe);
+                const newPipe = createPipe(furthestZ - CONFIG.pipeSpacing);
+                pipes[idx] = newPipe;
+            }
+        }
+    }
+
     // ==================== COLLISION ====================
     function checkCollision() {
         if (state.boostActive) return false;
@@ -848,6 +871,8 @@
                     // Restore sky
                     scene.background.setHex(CONFIG.skyColor);
                     scene.fog.color.setHex(CONFIG.fogColor);
+                    // Clear nearby pipes so player has reaction time
+                    clearPipesAfterBoost();
                 }
 
                 // Rainbow sky shift
@@ -997,8 +1022,8 @@
         camera.lookAt(0, state.playerY + 0.5, CONFIG.camLookZ);
 
         // Lights follow bird
-        pointLight.position.set(0, state.playerY + 1, -2);
-        dirLight.position.set(5, 15, CONFIG.camZ);
+        pointLight.position.set(0, state.playerY + 2, -6);
+        dirLight.position.set(5, 15, -10);
 
         // Animate boost orbs
         for (const orb of boostOrbs) {

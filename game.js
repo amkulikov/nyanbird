@@ -67,7 +67,7 @@
         playerY: 0,
         velocity: 0,
         score: 0,
-        bestScore: parseInt(localStorage.getItem('flappy3d_best') || '0', 10),
+        bestScore: parseInt(localStorage.getItem('nyanbird_best') || '0', 10),
         distance: 0,
         shakeTimer: 0,
         // difficulty
@@ -828,7 +828,7 @@
 
         if (state.score > state.bestScore) {
             state.bestScore = state.score;
-            localStorage.setItem('flappy3d_best', state.bestScore.toString());
+            localStorage.setItem('nyanbird_best', state.bestScore.toString());
         }
 
         state.shakeTimer = 0.5;

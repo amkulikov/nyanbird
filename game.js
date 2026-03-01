@@ -601,55 +601,25 @@
     }
 
     let boostMusicTimer = null;
+    let boostAudio = null;
 
     function startBoostMusic() {
         stopBoostMusic();
-        if (!audioCtx) return;
-
-        // Nyan Cat melody — accurate transcription (key of F#, 142 BPM)
-        // Based on electricmango/Arduino-Music-Project Nyan Cat with Bass,
-        // melody section transposed to octave 5 for the lead voice.
-        // Each slot = one 16th note; 8th notes expanded to two slots.
-        // Frequencies: D#5=622 E5=659 F#5=740 G#5=831 A#5=932 B5=988
-        //   C#6=1109 D#6=1245 E6=1319  B4=494 C#5=554 D5=587
-
-        const melody = [
-            // ---- Intro (32 slots) — the iconic hook ----
-            622, 659, 740,   0, 988, 659, 622, 659,
-            740, 988,1245,1319,1245, 932, 988,   0,
-            740,   0, 622, 659, 740,   0, 988, 988,
-           1109, 932, 988,1109,1319,1245,1319,1109,
-            // ---- Melody A (64 slots) ----
-            740, 740, 831, 831, 587, 622,   0, 554,
-            587, 554, 494, 494, 494, 494, 554, 554,
-            587, 587, 587, 554, 494, 554, 622, 740,
-            831, 622, 740, 554, 622, 494, 554, 494,
-            622, 622, 740, 740, 831, 622, 740, 554,
-            622, 494, 587, 622, 587, 554, 494, 554,
-            587, 587, 494, 554, 622, 740, 554, 587,
-            554, 494, 554, 554, 494, 494, 554, 554,
-        ];
-
-        // Bass: alternating F#3 (185) and B3 (247) — classic Nyan Cat bass
-        const bass = [
-            185,   0, 185,   0, 247,   0, 247,   0,
-        ];
-
-        let idx = 0;
-        boostMusicTimer = setInterval(() => {
-            if (!state.boostActive) { stopBoostMusic(); return; }
-            const m = melody[idx % melody.length];
-            if (m) playTone(m, 0.09, 'square', 0.05);
-            const b = bass[idx % bass.length];
-            if (b) playTone(b, 0.09, 'triangle', 0.03);
-            idx++;
-        }, 105); // 142 BPM, 16th notes
+        // Play the real Nyan Cat OGG file
+        boostAudio = new Audio('nyancat.ogg');
+        boostAudio.volume = 0.5;
+        boostAudio.play().catch(() => {});
     }
 
     function stopBoostMusic() {
         if (boostMusicTimer) {
             clearInterval(boostMusicTimer);
             boostMusicTimer = null;
+        }
+        if (boostAudio) {
+            boostAudio.pause();
+            boostAudio.currentTime = 0;
+            boostAudio = null;
         }
     }
 

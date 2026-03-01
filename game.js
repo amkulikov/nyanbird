@@ -402,27 +402,32 @@
         boostOrbs.push(group);
     }
 
-    // Spawn orb BETWEEN two pipes, off the optimal path
+    // Spawn orb BETWEEN two pipes, off the optimal flight line
     function maybeSpawnOrbBetween(pipeA, pipeB) {
         if (Math.random() > CONFIG.boostOrbChance) return;
 
-        // Z: midway between the two pipes
+        // Optimal flight line goes from gapA center to gapB center.
+        // We place the orb between the two pipes along Z, but at a Y
+        // that's in the middle of the screen — NOT on the straight line
+        // between gap centers. Player must detour vertically to grab it.
+
+        // Z: midway between pipes (between obstacles along flight path)
         const midZ = (pipeA.position.z + pipeB.position.z) / 2;
 
-        // The "optimal" Y is between the two gap centers
+        // The Y that the "optimal" straight line would pass through at midZ
         const optimalY = (pipeA.userData.gapCenter + pipeB.userData.gapCenter) / 2;
 
-        // Place orb far from optimal: pick a direction (up or down) and offset 3-5 units
-        const dir = Math.random() < 0.5 ? 1 : -1;
-        const offset = 3 + Math.random() * 2;
-        let orbY = optimalY + dir * offset;
+        // Pick an orb Y that's in a comfortable middle band [-2, 2]
+        // but at least 2 units away from the optimal line
+        let orbY;
+        for (let attempt = 0; attempt < 10; attempt++) {
+            orbY = -2 + Math.random() * 4; // range [-2, 2]
+            if (Math.abs(orbY - optimalY) >= 2) break;
+        }
 
-        // Clamp within playable area (leave margin from ground/ceiling)
-        orbY = Math.max(CONFIG.groundY + 1.5, Math.min(CONFIG.ceilingY - 1.5, orbY));
-
-        // If still too close to optimal path, flip direction
-        if (Math.abs(orbY - optimalY) < 2.5) {
-            orbY = optimalY - dir * offset;
+        // If optimal Y is in the middle too, push orb to an edge of the band
+        if (Math.abs(orbY - optimalY) < 2) {
+            orbY = optimalY > 0 ? -2.5 - Math.random() : 2.5 + Math.random();
             orbY = Math.max(CONFIG.groundY + 1.5, Math.min(CONFIG.ceilingY - 1.5, orbY));
         }
 

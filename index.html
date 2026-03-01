@@ -8,16 +8,18 @@
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <div id="flash-overlay"></div>
 
     <!-- UI Overlay -->
     <div id="ui-overlay">
         <!-- Start Screen -->
         <div id="start-screen" class="screen active">
             <h1>FLAPPY BIRD <span class="accent">3D</span></h1>
-            <p class="subtitle">First Person Mode</p>
+            <p class="subtitle">Third Person Edition</p>
             <div class="instructions">
                 <p>Tap / Space / Click to flap</p>
                 <p>Fly through the gaps between pipes</p>
+                <p>Collect golden orbs for BOOST!</p>
             </div>
             <button id="start-btn" class="btn">START</button>
         </div>
@@ -25,6 +27,7 @@
         <!-- HUD -->
         <div id="hud" class="hidden">
             <div id="score-display">0</div>
+            <div id="boost-indicator" class="hidden">BOOST!</div>
         </div>
 
         <!-- Game Over Screen -->

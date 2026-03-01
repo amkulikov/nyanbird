@@ -55,11 +55,11 @@
         fogFar: 100,
     };
 
-    // Nyan Cat rainbow bands (bottom → top): violet, blue, green, yellow, orange, red
-    const NYAN_BANDS = [0x6633ff, 0x0099ff, 0x00ff00, 0xffff00, 0xff8800, 0xff0000];
+    // Nyan Cat rainbow bands (left → right): red, orange, yellow, green, blue, violet
+    const NYAN_BANDS = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0099ff, 0x6633ff];
     const BAND_COUNT = NYAN_BANDS.length;
-    const BAND_H = 0.09;   // height of each stripe
-    const BAND_GAP = 0.11; // vertical spacing
+    const BAND_W = 0.12;   // width of each vertical stripe
+    const BAND_GAP = 0.14; // horizontal spacing between stripes
 
     // ==================== STATE ====================
     let state = {
@@ -477,7 +477,8 @@
     const trail = [];
 
     function initTrail() {
-        const geo = new THREE.PlaneGeometry(0.45, BAND_H);
+        // Each band is a tall vertical stripe (narrow X, tall Y)
+        const geo = new THREE.PlaneGeometry(BAND_W, 0.45);
         for (let b = 0; b < BAND_COUNT; b++) {
             const mat = new THREE.MeshBasicMaterial({
                 color: NYAN_BANDS[b],
@@ -495,12 +496,12 @@
     }
 
     function spawnTrailSegment(birdY, z) {
-        // Spawn one segment per band — 6 horizontal stripes
-        const bottomY = birdY - (BAND_COUNT - 1) * BAND_GAP / 2;
+        // Spawn one segment per band — 6 vertical stripes spread left-to-right
+        const leftX = -(BAND_COUNT - 1) * BAND_GAP / 2;
         for (let b = 0; b < BAND_COUNT; b++) {
             for (const p of trail) {
                 if (!p.on && p.band === b) {
-                    p.mesh.position.set(0, bottomY + b * BAND_GAP, z);
+                    p.mesh.position.set(leftX + b * BAND_GAP, birdY, z);
                     p.mesh.material.opacity = 0.92;
                     p.mesh.visible = true;
                     p.on = true;

@@ -58,8 +58,8 @@
     // Nyan Cat rainbow bands (left → right): red, orange, yellow, green, blue, violet
     const NYAN_BANDS = [0xff0000, 0xff8800, 0xffff00, 0x00ff00, 0x0099ff, 0x6633ff];
     const BAND_COUNT = NYAN_BANDS.length;
-    const BAND_W = 0.12;   // width of each vertical stripe
-    const BAND_GAP = 0.14; // horizontal spacing between stripes
+    const BAND_W = 0.28;   // width of each vertical stripe
+    const BAND_GAP = 0.30; // horizontal spacing between stripes
 
     // ==================== STATE ====================
     let state = {
@@ -156,6 +156,34 @@
     ground.position.y = CONFIG.groundY;
     ground.receiveShadow = true;
     scene.add(ground);
+
+    // Grass strip along ground edge
+    const grassMat = new THREE.MeshPhongMaterial({
+        color: 0x5abf2e,
+        emissive: 0x2a6f10,
+        emissiveIntensity: 0.15,
+    });
+    const grassGeo = new THREE.PlaneGeometry(400, 1.5);
+    const grass = new THREE.Mesh(grassGeo, grassMat);
+    grass.rotation.x = -Math.PI / 2;
+    grass.rotation.z = -Math.PI / 2;
+    grass.position.y = CONFIG.groundY + 0.02;
+    scene.add(grass);
+
+    // Grass blades — small triangles along the top edge
+    const bladeMat = new THREE.MeshBasicMaterial({ color: 0x3da51a, side: THREE.DoubleSide });
+    for (let i = 0; i < 120; i++) {
+        const h = 0.2 + Math.random() * 0.4;
+        const bladeGeo = new THREE.PlaneGeometry(0.15, h);
+        const blade = new THREE.Mesh(bladeGeo, bladeMat);
+        blade.position.set(
+            (Math.random() - 0.5) * 4,
+            CONFIG.groundY + h / 2,
+            -(Math.random() * 200)
+        );
+        blade.rotation.y = Math.random() * Math.PI;
+        scene.add(blade);
+    }
 
     const gridLines = [];
     for (let i = 0; i < 50; i++) {
@@ -302,17 +330,31 @@
         tail.rotation.x = -0.3;
         group.add(tail);
 
-        group.userData = { rWing: rWingPivot, lWing: lWingPivot };
+        // Boost glow aura (invisible by default)
+        const auraGeo = new THREE.SphereGeometry(0.7, 16, 12);
+        const auraMat = new THREE.MeshBasicMaterial({
+            color: 0xffdd00,
+            transparent: true,
+            opacity: 0,
+        });
+        const aura = new THREE.Mesh(auraGeo, auraMat);
+        group.add(aura);
+
+        group.userData = { rWing: rWingPivot, lWing: lWingPivot, aura, auraMat };
         group.scale.setScalar(1.2);
         return group;
     }
 
     const bird = createBird();
     scene.add(bird);
+    let flapSquish = 0; // squish timer for flap animation
 
     // ==================== PIPES ====================
     const pipes = [];
     const boostOrbs = [];
+
+    const pipeRadius = CONFIG.pipeWidth / 2;
+    const capRadius = pipeRadius + 0.2;
 
     function createPipe(zPos) {
         const group = new THREE.Group();
@@ -325,48 +367,72 @@
         // Bottom pipe
         const botH = gapCenter - halfGap - CONFIG.groundY;
         if (botH > 0.1) {
-            const geo = new THREE.BoxGeometry(CONFIG.pipeWidth, botH, CONFIG.pipeDepth);
+            const geo = new THREE.CylinderGeometry(pipeRadius, pipeRadius, botH, 16);
             const mesh = new THREE.Mesh(geo, pipeMat);
             mesh.position.y = CONFIG.groundY + botH / 2;
             mesh.castShadow = true;
             group.add(mesh);
 
-            const capGeo = new THREE.BoxGeometry(
-                CONFIG.pipeWidth + 0.4, 0.4, CONFIG.pipeDepth + 0.4
-            );
+            // Cap — wider cylinder lip
+            const capGeo = new THREE.CylinderGeometry(capRadius, capRadius, 0.4, 16);
             const cap = new THREE.Mesh(capGeo, pipeCapMat);
             cap.position.y = CONFIG.groundY + botH;
             group.add(cap);
+
+            // Dark inner ring at cap top
+            const rimGeo = new THREE.TorusGeometry(pipeRadius - 0.05, 0.06, 8, 16);
+            const rimMat = new THREE.MeshBasicMaterial({ color: 0x1a4a1d });
+            const rim = new THREE.Mesh(rimGeo, rimMat);
+            rim.rotation.x = Math.PI / 2;
+            rim.position.y = CONFIG.groundY + botH + 0.2;
+            group.add(rim);
         }
 
         // Top pipe
         const topH = CONFIG.ceilingY - (gapCenter + halfGap);
         if (topH > 0.1) {
-            const geo = new THREE.BoxGeometry(CONFIG.pipeWidth, topH, CONFIG.pipeDepth);
+            const geo = new THREE.CylinderGeometry(pipeRadius, pipeRadius, topH, 16);
             const mesh = new THREE.Mesh(geo, pipeMat);
             mesh.position.y = CONFIG.ceilingY - topH / 2;
             mesh.castShadow = true;
             group.add(mesh);
 
-            const capGeo = new THREE.BoxGeometry(
-                CONFIG.pipeWidth + 0.4, 0.4, CONFIG.pipeDepth + 0.4
-            );
+            const capGeo = new THREE.CylinderGeometry(capRadius, capRadius, 0.4, 16);
             const cap = new THREE.Mesh(capGeo, pipeCapMat);
             cap.position.y = CONFIG.ceilingY - topH;
             group.add(cap);
+
+            const rimGeo = new THREE.TorusGeometry(pipeRadius - 0.05, 0.06, 8, 16);
+            const rimMat = new THREE.MeshBasicMaterial({ color: 0x1a4a1d });
+            const rim = new THREE.Mesh(rimGeo, rimMat);
+            rim.rotation.x = Math.PI / 2;
+            rim.position.y = CONFIG.ceilingY - topH - 0.2;
+            group.add(rim);
         }
 
-        // Glow ring at gap center
-        const ringGeo = new THREE.TorusGeometry(gap / 2 - 0.3, 0.08, 8, 4);
+        // Glow ring at gap center — animated guide
+        const ringGeo = new THREE.TorusGeometry(gap / 2 - 0.2, 0.06, 8, 24);
         const ringMat = new THREE.MeshBasicMaterial({
-            color: 0x88ff88,
+            color: 0x88ffaa,
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.35,
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.position.y = gapCenter;
-        ring.rotation.y = Math.PI / 4;
+        ring.rotation.x = Math.PI / 2;
         group.add(ring);
+
+        // Second inner ring for depth
+        const ring2Geo = new THREE.TorusGeometry(gap / 2 - 0.5, 0.04, 8, 24);
+        const ring2Mat = new THREE.MeshBasicMaterial({
+            color: 0xaaffcc,
+            transparent: true,
+            opacity: 0.2,
+        });
+        const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
+        ring2.position.y = gapCenter;
+        ring2.rotation.x = Math.PI / 2;
+        group.add(ring2);
 
         group.position.z = zPos;
         group.userData = { gapCenter, passed: false };
@@ -378,24 +444,59 @@
     function spawnBoostOrb(z, y) {
         const group = new THREE.Group();
 
-        // Outer glow
+        // Outer glow sphere
         const glowGeo = new THREE.SphereGeometry(0.7, 12, 12);
         const glowMat = new THREE.MeshBasicMaterial({
             color: 0xffdd00,
             transparent: true,
-            opacity: 0.25,
+            opacity: 0.2,
         });
         group.add(new THREE.Mesh(glowGeo, glowMat));
 
-        // Inner star
-        const orbGeo = new THREE.OctahedronGeometry(0.35, 0);
+        // Spinning particle ring
+        const ringGeo = new THREE.TorusGeometry(0.55, 0.04, 8, 24);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0xffee66,
+            transparent: true,
+            opacity: 0.6,
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        group.add(ring);
+
+        // Second ring (perpendicular)
+        const ring2 = new THREE.Mesh(ringGeo, ringMat.clone());
+        ring2.rotation.y = Math.PI / 2;
+        group.add(ring2);
+
+        // Inner star — octahedron
+        const orbGeo = new THREE.OctahedronGeometry(0.3, 0);
         const orbMat = new THREE.MeshPhongMaterial({
-            color: 0xffaa00,
-            emissive: 0xff6600,
-            emissiveIntensity: 0.6,
-            shininess: 100,
+            color: 0xffcc00,
+            emissive: 0xff8800,
+            emissiveIntensity: 0.8,
+            shininess: 120,
         });
         group.add(new THREE.Mesh(orbGeo, orbMat));
+
+        // Tiny sparkle particles around orb
+        const sparkGeo = new THREE.BufferGeometry();
+        const sparkPos = new Float32Array(24 * 3);
+        for (let i = 0; i < 24; i++) {
+            const a = (i / 24) * Math.PI * 2;
+            const r = 0.5 + Math.random() * 0.3;
+            sparkPos[i * 3] = Math.cos(a) * r;
+            sparkPos[i * 3 + 1] = (Math.random() - 0.5) * 0.6;
+            sparkPos[i * 3 + 2] = Math.sin(a) * r;
+        }
+        sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+        const sparkMat = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.08,
+            transparent: true,
+            opacity: 0.7,
+            sizeAttenuation: true,
+        });
+        group.add(new THREE.Points(sparkGeo, sparkMat));
 
         group.position.set(0, y, z);
         group.userData = { collected: false };
@@ -478,7 +579,7 @@
 
     function initTrail() {
         // Each band is a tall vertical stripe (narrow X, tall Y)
-        const geo = new THREE.PlaneGeometry(BAND_W, 0.45);
+        const geo = new THREE.PlaneGeometry(BAND_W, 0.7);
         for (let b = 0; b < BAND_COUNT; b++) {
             const mat = new THREE.MeshBasicMaterial({
                 color: NYAN_BANDS[b],
@@ -502,7 +603,7 @@
             for (const p of trail) {
                 if (!p.on && p.band === b) {
                     p.mesh.position.set(leftX + b * BAND_GAP, birdY, z);
-                    p.mesh.material.opacity = 0.92;
+                    p.mesh.material.opacity = 1.0;
                     p.mesh.visible = true;
                     p.on = true;
                     p.life = 1.0;
@@ -516,8 +617,8 @@
         for (const p of trail) {
             if (p.on) {
                 p.mesh.position.z += dz;
-                p.life -= dt * 0.55;
-                p.mesh.material.opacity = Math.max(0, p.life * 0.9);
+                p.life -= dt * 0.45;
+                p.mesh.material.opacity = Math.max(0, p.life);
                 if (p.life <= 0) {
                     p.on = false;
                     p.mesh.visible = false;
@@ -533,8 +634,52 @@
         }
     }
 
+    // ==================== SPEED LINES (boost effect) ====================
+    const SPEED_LINE_N = 40;
+    const speedLines = [];
+
+    function initSpeedLines() {
+        const geo = new THREE.PlaneGeometry(0.03, 4);
+        const mat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0,
+            side: THREE.DoubleSide,
+        });
+        for (let i = 0; i < SPEED_LINE_N; i++) {
+            const mesh = new THREE.Mesh(geo, mat.clone());
+            mesh.visible = false;
+            scene.add(mesh);
+            speedLines.push(mesh);
+        }
+    }
+
+    function updateSpeedLines(dt, now, playerY, active) {
+        for (let i = 0; i < SPEED_LINE_N; i++) {
+            const line = speedLines[i];
+            if (active) {
+                if (!line.visible || line.position.z > 2) {
+                    // Respawn ahead
+                    line.position.set(
+                        (Math.random() - 0.5) * 10,
+                        playerY + (Math.random() - 0.5) * 8,
+                        -(Math.random() * 30 + 5)
+                    );
+                    line.visible = true;
+                }
+                line.position.z += 35 * dt;
+                line.material.opacity = Math.min(0.6, 0.6 * (1 - line.position.z / 2));
+            } else {
+                if (line.visible) {
+                    line.material.opacity -= dt * 3;
+                    if (line.material.opacity <= 0) line.visible = false;
+                }
+            }
+        }
+    }
+
     // ==================== AMBIENT PARTICLES ====================
-    const PARTICLE_N = 150;
+    const PARTICLE_N = 250;
     const pGeo = new THREE.BufferGeometry();
     const pPos = new Float32Array(PARTICLE_N * 3);
 
@@ -548,9 +693,9 @@
 
     const pMat = new THREE.PointsMaterial({
         color: 0xffffff,
-        size: 0.08,
+        size: 0.12,
         transparent: true,
-        opacity: 0.3,
+        opacity: 0.4,
         sizeAttenuation: true,
     });
     const ambientParticles = new THREE.Points(pGeo, pMat);
@@ -691,6 +836,7 @@
         if (state.phase === 'playing' && !state.boostActive) {
             state.velocity = CONFIG.flapForce;
             flapSound();
+            flapSquish = 0.15; // trigger squish animation
         }
     }
 
@@ -981,6 +1127,21 @@
             // Boost orb collection
             checkOrbCollection();
 
+            // Speed lines during boost
+            updateSpeedLines(dt, now, state.playerY, state.boostActive);
+
+            // Ambient particles color shift during boost
+            if (state.boostActive) {
+                const hue = (now * 1.5) % 1;
+                pMat.color.setHSL(hue, 0.8, 0.7);
+                pMat.size = 0.2;
+                pMat.opacity = 0.6;
+            } else {
+                pMat.color.setHex(0xffffff);
+                pMat.size = 0.12;
+                pMat.opacity = 0.4;
+            }
+
             // Nyan rainbow trail
             if (state.boostActive) {
                 spawnTrailSegment(state.playerY, 0.7);
@@ -1006,6 +1167,25 @@
         const tiltTarget = state.velocity * 0.05;
         const tiltClamped = Math.max(-0.7, Math.min(0.5, tiltTarget));
         bird.rotation.x += (tiltClamped - bird.rotation.x) * Math.min(1, 8 * dt);
+
+        // Squish on flap (stretch Y, squash X/Z)
+        if (flapSquish > 0) {
+            flapSquish -= dt;
+            const s = flapSquish / 0.15; // 1→0
+            bird.scale.set(1.2 * (1 - s * 0.15), 1.2 * (1 + s * 0.25), 1.2 * (1 - s * 0.15));
+        } else {
+            bird.scale.setScalar(1.2);
+        }
+
+        // Boost aura glow
+        const auraMat = bird.userData.auraMat;
+        if (state.boostActive) {
+            auraMat.opacity = 0.25 + 0.15 * Math.sin(now * 10);
+            const hue = (now * 2) % 1;
+            auraMat.color.setHSL(hue, 1, 0.6);
+        } else {
+            auraMat.opacity = Math.max(0, auraMat.opacity - dt * 3);
+        }
 
         // Wings
         const flapSpd = state.boostActive ? 30 : state.phase === 'playing' ? 15 : 5;
@@ -1036,18 +1216,22 @@
         for (const orb of boostOrbs) {
             orb.rotation.y += dt * 3;
             orb.rotation.x += dt * 1.5;
-            orb.scale.setScalar(1 + Math.sin(now * 5) * 0.15);
+            const pulse = 1 + Math.sin(now * 6) * 0.2;
+            orb.scale.setScalar(pulse);
+            // Spin inner rings independently
+            if (orb.children[1]) orb.children[1].rotation.x += dt * 4;
+            if (orb.children[2]) orb.children[2].rotation.z += dt * 3;
         }
 
-        // Animate pipe rings
+        // Animate pipe gap rings
         for (const pipe of pipes) {
-            const ring = pipe.children.find(
-                (c) => c.geometry && c.geometry.type === 'TorusGeometry'
-            );
-            if (ring) {
-                ring.rotation.z += dt * 1.5;
-                ring.material.opacity = Math.abs(pipe.position.z) < 20 ? 0.5 : 0.15;
-            }
+            pipe.children.forEach((c) => {
+                if (c.geometry && c.geometry.type === 'TorusGeometry' && c.position.y === pipe.userData.gapCenter) {
+                    c.rotation.z += dt * 1.5;
+                    const dist = Math.abs(pipe.position.z);
+                    c.material.opacity = dist < 25 ? 0.35 + 0.2 * Math.sin(now * 3 + pipe.position.z) : 0.1;
+                }
+            });
         }
 
         renderer.render(scene, camera);
@@ -1122,6 +1306,7 @@
     // ==================== INIT ====================
     bestScoreValue.textContent = state.bestScore;
     initTrail();
+    initSpeedLines();
     initClouds();
     initPipes();
     requestAnimationFrame(gameLoop);

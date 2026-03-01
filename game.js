@@ -606,40 +606,44 @@
         stopBoostMusic();
         if (!audioCtx) return;
 
-        // Nyan Cat melody (key of F#, 16th notes)
-        // F#4=370 G#4=415 B4=494 C#5=554 D#5=622 E5=659 F#5=740 G#5=831
+        // Nyan Cat melody — accurate transcription (key of F#, 142 BPM)
+        // Based on electricmango/Arduino-Music-Project Nyan Cat with Bass,
+        // melody section transposed to octave 5 for the lead voice.
+        // Each slot = one 16th note; 8th notes expanded to two slots.
+        // Frequencies: D#5=622 E5=659 F#5=740 G#5=831 A#5=932 B5=988
+        //   C#6=1109 D#6=1245 E6=1319  B4=494 C#5=554 D5=587
+
         const melody = [
-            // Phrase A
-            740, 831,   0, 622,   0, 494,   0, 622,
-            659, 622,   0, 554, 622,   0, 740, 831,
-            // Phrase B
-            622, 740, 554, 622, 494, 554,   0, 494,
-              0,   0,   0,   0,   0,   0,   0,   0,
-            // Phrase A (repeat)
-            740, 831,   0, 622,   0, 494,   0, 622,
-            659, 622,   0, 554, 622,   0, 740, 831,
-            // Phrase C (variation)
-            622, 740, 554, 622, 494, 554, 622, 494,
-            554,   0, 494,   0,   0,   0,   0,   0,
+            // ---- Intro (32 slots) — the iconic hook ----
+            622, 659, 740,   0, 988, 659, 622, 659,
+            740, 988,1245,1319,1245, 932, 988,   0,
+            740,   0, 622, 659, 740,   0, 988, 988,
+           1109, 932, 988,1109,1319,1245,1319,1109,
+            // ---- Melody A (64 slots) ----
+            740, 740, 831, 831, 587, 622,   0, 554,
+            587, 554, 494, 494, 494, 494, 554, 554,
+            587, 587, 587, 554, 494, 554, 622, 740,
+            831, 622, 740, 554, 622, 494, 554, 494,
+            622, 622, 740, 740, 831, 622, 740, 554,
+            622, 494, 587, 622, 587, 554, 494, 554,
+            587, 587, 494, 554, 622, 740, 554, 587,
+            554, 494, 554, 554, 494, 494, 554, 554,
         ];
 
-        // Bass line (F# and B root notes)
+        // Bass: alternating F#3 (185) and B3 (247) — classic Nyan Cat bass
         const bass = [
-            185,   0, 185,   0, 233,   0, 233,   0,
-            185,   0, 185,   0, 233,   0, 233,   0,
-            123,   0, 123,   0, 156,   0, 156,   0,
-            123,   0, 123,   0, 156,   0, 156,   0,
+            185,   0, 185,   0, 247,   0, 247,   0,
         ];
 
         let idx = 0;
         boostMusicTimer = setInterval(() => {
             if (!state.boostActive) { stopBoostMusic(); return; }
             const m = melody[idx % melody.length];
-            if (m) playTone(m, 0.09, 'square', 0.04);
+            if (m) playTone(m, 0.09, 'square', 0.05);
             const b = bass[idx % bass.length];
-            if (b) playTone(b, 0.09, 'triangle', 0.025);
+            if (b) playTone(b, 0.09, 'triangle', 0.03);
             idx++;
-        }, 105); // ~142 BPM 16th notes
+        }, 105); // 142 BPM, 16th notes
     }
 
     function stopBoostMusic() {

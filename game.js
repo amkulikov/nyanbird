@@ -157,32 +157,32 @@
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // Grass strip along ground edge
+    // Grass strip — solid box sitting on top of ground
     const grassMat = new THREE.MeshPhongMaterial({
         color: 0x5abf2e,
         emissive: 0x2a6f10,
         emissiveIntensity: 0.15,
     });
-    const grassGeo = new THREE.PlaneGeometry(400, 1.5);
+    const grassGeo = new THREE.BoxGeometry(CONFIG.areaWidth, 0.3, 400);
     const grass = new THREE.Mesh(grassGeo, grassMat);
-    grass.rotation.x = -Math.PI / 2;
-    grass.rotation.z = -Math.PI / 2;
-    grass.position.y = CONFIG.groundY + 0.02;
+    grass.position.y = CONFIG.groundY + 0.15;
     scene.add(grass);
 
-    // Grass blades — small triangles along the top edge
+    // Grass blades — move with the world like grid lines
+    const grassBlades = [];
     const bladeMat = new THREE.MeshBasicMaterial({ color: 0x3da51a, side: THREE.DoubleSide });
-    for (let i = 0; i < 120; i++) {
-        const h = 0.2 + Math.random() * 0.4;
+    for (let i = 0; i < 80; i++) {
+        const h = 0.25 + Math.random() * 0.45;
         const bladeGeo = new THREE.PlaneGeometry(0.15, h);
         const blade = new THREE.Mesh(bladeGeo, bladeMat);
         blade.position.set(
-            (Math.random() - 0.5) * 4,
-            CONFIG.groundY + h / 2,
+            (Math.random() - 0.5) * 6,
+            CONFIG.groundY + 0.3 + h / 2,
             -(Math.random() * 200)
         );
         blade.rotation.y = Math.random() * Math.PI;
         scene.add(blade);
+        grassBlades.push(blade);
     }
 
     const gridLines = [];
@@ -639,15 +639,18 @@
     const speedLines = [];
 
     function initSpeedLines() {
-        const geo = new THREE.PlaneGeometry(0.03, 4);
-        const mat = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0,
-            side: THREE.DoubleSide,
-        });
+        // Thin planes stretched along Z axis — look like motion streaks
+        const geo = new THREE.PlaneGeometry(0.04, 3);
         for (let i = 0; i < SPEED_LINE_N; i++) {
-            const mesh = new THREE.Mesh(geo, mat.clone());
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide,
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            // Rotate so the long axis aligns with Z (depth)
+            mesh.rotation.x = Math.PI / 2;
             mesh.visible = false;
             scene.add(mesh);
             speedLines.push(mesh);
@@ -658,20 +661,24 @@
         for (let i = 0; i < SPEED_LINE_N; i++) {
             const line = speedLines[i];
             if (active) {
-                if (!line.visible || line.position.z > 2) {
-                    // Respawn ahead
+                if (!line.visible || line.position.z > 5) {
+                    // Respawn ahead of the bird at random spread
                     line.position.set(
-                        (Math.random() - 0.5) * 10,
-                        playerY + (Math.random() - 0.5) * 8,
-                        -(Math.random() * 30 + 5)
+                        (Math.random() - 0.5) * 14,
+                        playerY + (Math.random() - 0.5) * 10,
+                        -(Math.random() * 40 + 8)
                     );
                     line.visible = true;
+                    line.material.opacity = 0.5 + Math.random() * 0.3;
                 }
-                line.position.z += 35 * dt;
-                line.material.opacity = Math.min(0.6, 0.6 * (1 - line.position.z / 2));
+                line.position.z += 45 * dt;
+                // Fade as it approaches camera
+                if (line.position.z > 0) {
+                    line.material.opacity *= 0.9;
+                }
             } else {
                 if (line.visible) {
-                    line.material.opacity -= dt * 3;
+                    line.material.opacity -= dt * 4;
                     if (line.material.opacity <= 0) line.visible = false;
                 }
             }
@@ -1093,6 +1100,15 @@
             for (const line of gridLines) {
                 line.position.z += dz;
                 if (line.position.z > 10) line.position.z -= 200;
+            }
+
+            // Move grass blades
+            for (const blade of grassBlades) {
+                blade.position.z += dz;
+                if (blade.position.z > 10) {
+                    blade.position.z -= 210;
+                    blade.position.x = (Math.random() - 0.5) * 6;
+                }
             }
 
             // Move clouds

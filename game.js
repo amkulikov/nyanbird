@@ -1083,33 +1083,32 @@
         }
     });
 
-    // ==================== SHAKE CHEAT (devicemotion) ====================
-    let shakeHistory = [];
-    const SHAKE_THRESHOLD = 25; // m/s² — solid shake required
-    const SHAKE_WINDOW = 600;   // ms — 3+ peaks in this window
-    const SHAKE_PEAKS = 3;
-    let shakeCooldown = 0;
+    // ==================== TWO-FINGER SWIPE UP CHEAT ====================
+    let twoFingerStartY = null;
 
-    window.addEventListener('devicemotion', (e) => {
-        const acc = e.accelerationIncludingGravity;
-        if (!acc) return;
-        const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-        const now = Date.now();
-
-        if (mag > SHAKE_THRESHOLD) {
-            shakeHistory.push(now);
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            twoFingerStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        } else {
+            twoFingerStartY = null;
         }
-        // Trim old entries
-        shakeHistory = shakeHistory.filter((t) => now - t < SHAKE_WINDOW);
+    }, { passive: true });
 
-        if (shakeHistory.length >= SHAKE_PEAKS && now > shakeCooldown) {
-            shakeHistory = [];
-            shakeCooldown = now + 2000; // 2s cooldown between shakes
+    canvas.addEventListener('touchmove', (e) => {
+        if (twoFingerStartY === null || e.touches.length !== 2) return;
+        const currentY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const dy = twoFingerStartY - currentY; // positive = swipe up
+        if (dy > 60) {
+            twoFingerStartY = null;
             if (state.phase === 'playing' && !state.boostActive) {
                 activateBoost();
             }
         }
-    });
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+        twoFingerStartY = null;
+    }, { passive: true });
 
     // ==================== RESIZE ====================
     window.addEventListener('resize', () => {

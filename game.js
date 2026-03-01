@@ -371,19 +371,14 @@
         group.userData = { gapCenter, passed: false };
         scene.add(group);
 
-        // Maybe spawn a boost orb
-        if (Math.random() < CONFIG.boostOrbChance) {
-            spawnBoostOrb(zPos, gapCenter);
-        }
-
         return group;
     }
 
     function spawnBoostOrb(z, y) {
         const group = new THREE.Group();
 
-        // Outer glow
-        const glowGeo = new THREE.SphereGeometry(0.55, 12, 12);
+        // Outer glow (smaller)
+        const glowGeo = new THREE.SphereGeometry(0.4, 12, 12);
         const glowMat = new THREE.MeshBasicMaterial({
             color: 0xffdd00,
             transparent: true,
@@ -391,8 +386,8 @@
         });
         group.add(new THREE.Mesh(glowGeo, glowMat));
 
-        // Inner star
-        const orbGeo = new THREE.OctahedronGeometry(0.28, 0);
+        // Inner star (smaller)
+        const orbGeo = new THREE.OctahedronGeometry(0.2, 0);
         const orbMat = new THREE.MeshPhongMaterial({
             color: 0xffaa00,
             emissive: 0xff6600,
@@ -407,6 +402,33 @@
         boostOrbs.push(group);
     }
 
+    // Spawn orb BETWEEN two pipes, off the optimal path
+    function maybeSpawnOrbBetween(pipeA, pipeB) {
+        if (Math.random() > CONFIG.boostOrbChance) return;
+
+        // Z: midway between the two pipes
+        const midZ = (pipeA.position.z + pipeB.position.z) / 2;
+
+        // The "optimal" Y is between the two gap centers
+        const optimalY = (pipeA.userData.gapCenter + pipeB.userData.gapCenter) / 2;
+
+        // Place orb far from optimal: pick a direction (up or down) and offset 3-5 units
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const offset = 3 + Math.random() * 2;
+        let orbY = optimalY + dir * offset;
+
+        // Clamp within playable area (leave margin from ground/ceiling)
+        orbY = Math.max(CONFIG.groundY + 1.5, Math.min(CONFIG.ceilingY - 1.5, orbY));
+
+        // If still too close to optimal path, flip direction
+        if (Math.abs(orbY - optimalY) < 2.5) {
+            orbY = optimalY - dir * offset;
+            orbY = Math.max(CONFIG.groundY + 1.5, Math.min(CONFIG.ceilingY - 1.5, orbY));
+        }
+
+        spawnBoostOrb(midZ, orbY);
+    }
+
     function initPipes() {
         pipes.forEach((p) => scene.remove(p));
         pipes.length = 0;
@@ -416,12 +438,32 @@
         for (let i = 0; i < CONFIG.pipeCount; i++) {
             pipes.push(createPipe(-(20 + i * CONFIG.pipeSpacing)));
         }
+        // Spawn orbs between consecutive pipe pairs
+        for (let i = 0; i < pipes.length - 1; i++) {
+            maybeSpawnOrbBetween(pipes[i], pipes[i + 1]);
+        }
     }
 
     function recyclePipe(pipe, newZ) {
         scene.remove(pipe);
         const idx = pipes.indexOf(pipe);
-        pipes[idx] = createPipe(newZ);
+        const newPipe = createPipe(newZ);
+        pipes[idx] = newPipe;
+
+        // Try to spawn orb between this new pipe and the nearest pipe ahead of it
+        let nearest = null;
+        let nearestDist = Infinity;
+        for (const p of pipes) {
+            if (p === newPipe) continue;
+            const d = Math.abs(p.position.z - newZ);
+            if (d < nearestDist && d > 1) {
+                nearestDist = d;
+                nearest = p;
+            }
+        }
+        if (nearest && nearestDist < CONFIG.pipeSpacing * 1.5) {
+            maybeSpawnOrbBetween(newPipe, nearest);
+        }
     }
 
     // ==================== RAINBOW TRAIL ====================
@@ -698,7 +740,7 @@
         for (let i = boostOrbs.length - 1; i >= 0; i--) {
             const orb = boostOrbs[i];
             if (orb.userData.collected) continue;
-            if (Math.abs(orb.position.z) < 1.5 && Math.abs(orb.position.y - state.playerY) < 1.5) {
+            if (Math.abs(orb.position.z) < 1.0 && Math.abs(orb.position.y - state.playerY) < 1.0) {
                 orb.userData.collected = true;
                 scene.remove(orb);
                 boostOrbs.splice(i, 1);

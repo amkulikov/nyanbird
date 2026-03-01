@@ -55,10 +55,11 @@
         fogFar: 100,
     };
 
-    const RAINBOW = [
-        0xff0000, 0xff7700, 0xffff00, 0x00ff00,
-        0x0088ff, 0x4400ff, 0x8800ff,
-    ];
+    // Nyan Cat rainbow bands (bottom → top): violet, blue, green, yellow, orange, red
+    const NYAN_BANDS = [0x6633ff, 0x0099ff, 0x00ff00, 0xffff00, 0xff8800, 0xff0000];
+    const BAND_COUNT = NYAN_BANDS.length;
+    const BAND_H = 0.09;   // height of each stripe
+    const BAND_GAP = 0.11; // vertical spacing
 
     // ==================== STATE ====================
     let state = {
@@ -471,38 +472,41 @@
         }
     }
 
-    // ==================== RAINBOW TRAIL ====================
-    const TRAIL_MAX = 80;
+    // ==================== NYAN RAINBOW TRAIL ====================
+    const SEGS_PER_BAND = 28;
     const trail = [];
-    let trailColorIdx = 0;
 
     function initTrail() {
-        for (let i = 0; i < TRAIL_MAX; i++) {
-            const geo = new THREE.SphereGeometry(0.13, 6, 6);
+        const geo = new THREE.PlaneGeometry(0.45, BAND_H);
+        for (let b = 0; b < BAND_COUNT; b++) {
             const mat = new THREE.MeshBasicMaterial({
-                color: 0xffffff,
+                color: NYAN_BANDS[b],
                 transparent: true,
                 opacity: 0,
+                side: THREE.DoubleSide,
             });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.visible = false;
-            scene.add(mesh);
-            trail.push({ mesh, life: 0, on: false });
+            for (let i = 0; i < SEGS_PER_BAND; i++) {
+                const mesh = new THREE.Mesh(geo, mat.clone());
+                mesh.visible = false;
+                scene.add(mesh);
+                trail.push({ mesh, life: 0, on: false, band: b });
+            }
         }
     }
 
-    function spawnTrail(x, y, z) {
-        for (const p of trail) {
-            if (!p.on) {
-                p.mesh.position.set(x, y, z);
-                p.mesh.material.color.setHex(RAINBOW[trailColorIdx % RAINBOW.length]);
-                p.mesh.material.opacity = 0.85;
-                p.mesh.scale.setScalar(1.0);
-                p.mesh.visible = true;
-                p.on = true;
-                p.life = 1.0;
-                trailColorIdx++;
-                return;
+    function spawnTrailSegment(birdY, z) {
+        // Spawn one segment per band — 6 horizontal stripes
+        const bottomY = birdY - (BAND_COUNT - 1) * BAND_GAP / 2;
+        for (let b = 0; b < BAND_COUNT; b++) {
+            for (const p of trail) {
+                if (!p.on && p.band === b) {
+                    p.mesh.position.set(0, bottomY + b * BAND_GAP, z);
+                    p.mesh.material.opacity = 0.92;
+                    p.mesh.visible = true;
+                    p.on = true;
+                    p.life = 1.0;
+                    break;
+                }
             }
         }
     }
@@ -511,9 +515,8 @@
         for (const p of trail) {
             if (p.on) {
                 p.mesh.position.z += dz;
-                p.life -= dt * 0.7;
-                p.mesh.material.opacity = Math.max(0, p.life * 0.85);
-                p.mesh.scale.setScalar(0.4 + p.life * 0.6);
+                p.life -= dt * 0.55;
+                p.mesh.material.opacity = Math.max(0, p.life * 0.9);
                 if (p.life <= 0) {
                     p.on = false;
                     p.mesh.visible = false;
@@ -601,18 +604,41 @@
     function startBoostMusic() {
         stopBoostMusic();
         if (!audioCtx) return;
+
+        // Nyan Cat melody (key of F#, 16th notes)
+        // F#4=370 G#4=415 B4=494 C#5=554 D#5=622 E5=659 F#5=740 G#5=831
         const melody = [
-            523, 659, 784, 1047, 784, 659,
-            523, 784, 1047, 1319, 1047, 784,
+            // Phrase A
+            740, 831,   0, 622,   0, 494,   0, 622,
+            659, 622,   0, 554, 622,   0, 740, 831,
+            // Phrase B
+            622, 740, 554, 622, 494, 554,   0, 494,
+              0,   0,   0,   0,   0,   0,   0,   0,
+            // Phrase A (repeat)
+            740, 831,   0, 622,   0, 494,   0, 622,
+            659, 622,   0, 554, 622,   0, 740, 831,
+            // Phrase C (variation)
+            622, 740, 554, 622, 494, 554, 622, 494,
+            554,   0, 494,   0,   0,   0,   0,   0,
         ];
+
+        // Bass line (F# and B root notes)
+        const bass = [
+            185,   0, 185,   0, 233,   0, 233,   0,
+            185,   0, 185,   0, 233,   0, 233,   0,
+            123,   0, 123,   0, 156,   0, 156,   0,
+            123,   0, 123,   0, 156,   0, 156,   0,
+        ];
+
         let idx = 0;
         boostMusicTimer = setInterval(() => {
             if (!state.boostActive) { stopBoostMusic(); return; }
-            const f = melody[idx % melody.length];
-            playTone(f, 0.08, 'square', 0.035);
-            playTone(f / 2, 0.08, 'triangle', 0.02);
+            const m = melody[idx % melody.length];
+            if (m) playTone(m, 0.09, 'square', 0.04);
+            const b = bass[idx % bass.length];
+            if (b) playTone(b, 0.09, 'triangle', 0.025);
             idx++;
-        }, 100);
+        }, 105); // ~142 BPM 16th notes
     }
 
     function stopBoostMusic() {
@@ -918,18 +944,9 @@
             // Boost orb collection
             checkOrbCollection();
 
-            // Rainbow trail
+            // Nyan rainbow trail
             if (state.boostActive) {
-                spawnTrail(
-                    (Math.random() - 0.5) * 0.3,
-                    state.playerY + (Math.random() - 0.5) * 0.3,
-                    0.6 + Math.random() * 0.3
-                );
-                spawnTrail(
-                    (Math.random() - 0.5) * 0.3,
-                    state.playerY + (Math.random() - 0.5) * 0.3,
-                    0.8 + Math.random() * 0.3
-                );
+                spawnTrailSegment(state.playerY, 0.7);
             }
             updateTrail(dt, dz);
         }

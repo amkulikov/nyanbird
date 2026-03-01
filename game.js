@@ -168,21 +168,25 @@
     grass.position.y = CONFIG.groundY + 0.15;
     scene.add(grass);
 
-    // Grass blades — move with the world like grid lines
-    const grassBlades = [];
-    const bladeMat = new THREE.MeshBasicMaterial({ color: 0x3da51a, side: THREE.DoubleSide });
-    for (let i = 0; i < 80; i++) {
-        const h = 0.25 + Math.random() * 0.45;
-        const bladeGeo = new THREE.PlaneGeometry(0.15, h);
-        const blade = new THREE.Mesh(bladeGeo, bladeMat);
-        blade.position.set(
-            (Math.random() - 0.5) * 6,
+    // Grass tufts — small cones sitting on the grass strip, scroll with the world
+    const grassTufts = [];
+    const tuftMats = [
+        new THREE.MeshPhongMaterial({ color: 0x3da51a }),
+        new THREE.MeshPhongMaterial({ color: 0x4fc832 }),
+        new THREE.MeshPhongMaterial({ color: 0x2e8b15 }),
+    ];
+    for (let i = 0; i < 60; i++) {
+        const h = 0.2 + Math.random() * 0.35;
+        const r = 0.1 + Math.random() * 0.15;
+        const tuftGeo = new THREE.ConeGeometry(r, h, 5);
+        const tuft = new THREE.Mesh(tuftGeo, tuftMats[i % 3]);
+        tuft.position.set(
+            (Math.random() - 0.5) * 8,
             CONFIG.groundY + 0.3 + h / 2,
             -(Math.random() * 200)
         );
-        blade.rotation.y = Math.random() * Math.PI;
-        scene.add(blade);
-        grassBlades.push(blade);
+        scene.add(tuft);
+        grassTufts.push(tuft);
     }
 
     const gridLines = [];
@@ -410,7 +414,7 @@
             group.add(rim);
         }
 
-        // Glow ring at gap center — animated guide
+        // Glow ring at gap center — vertical target ring facing the bird
         const ringGeo = new THREE.TorusGeometry(gap / 2 - 0.2, 0.06, 8, 24);
         const ringMat = new THREE.MeshBasicMaterial({
             color: 0x88ffaa,
@@ -419,7 +423,6 @@
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
         ring.position.y = gapCenter;
-        ring.rotation.x = Math.PI / 2;
         group.add(ring);
 
         // Second inner ring for depth
@@ -431,7 +434,6 @@
         });
         const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
         ring2.position.y = gapCenter;
-        ring2.rotation.x = Math.PI / 2;
         group.add(ring2);
 
         group.position.z = zPos;
@@ -1102,12 +1104,12 @@
                 if (line.position.z > 10) line.position.z -= 200;
             }
 
-            // Move grass blades
-            for (const blade of grassBlades) {
-                blade.position.z += dz;
-                if (blade.position.z > 10) {
-                    blade.position.z -= 210;
-                    blade.position.x = (Math.random() - 0.5) * 6;
+            // Move grass tufts
+            for (const tuft of grassTufts) {
+                tuft.position.z += dz;
+                if (tuft.position.z > 10) {
+                    tuft.position.z -= 210;
+                    tuft.position.x = (Math.random() - 0.5) * 8;
                 }
             }
 

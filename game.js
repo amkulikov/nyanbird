@@ -27,7 +27,7 @@
         // Boost
         boostDuration: 10,
         boostSpeedMul: 2.2,
-        boostOrbChance: 0.3,
+        boostOrbChance: 0.075,
 
         // World
         areaWidth: 20,
@@ -1079,6 +1079,34 @@
                 !gameoverScreen.classList.contains('hidden')
             ) {
                 startGame();
+            }
+        }
+    });
+
+    // ==================== SHAKE CHEAT (devicemotion) ====================
+    let shakeHistory = [];
+    const SHAKE_THRESHOLD = 25; // m/s² — solid shake required
+    const SHAKE_WINDOW = 600;   // ms — 3+ peaks in this window
+    const SHAKE_PEAKS = 3;
+    let shakeCooldown = 0;
+
+    window.addEventListener('devicemotion', (e) => {
+        const acc = e.accelerationIncludingGravity;
+        if (!acc) return;
+        const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+        const now = Date.now();
+
+        if (mag > SHAKE_THRESHOLD) {
+            shakeHistory.push(now);
+        }
+        // Trim old entries
+        shakeHistory = shakeHistory.filter((t) => now - t < SHAKE_WINDOW);
+
+        if (shakeHistory.length >= SHAKE_PEAKS && now > shakeCooldown) {
+            shakeHistory = [];
+            shakeCooldown = now + 2000; // 2s cooldown between shakes
+            if (state.phase === 'playing' && !state.boostActive) {
+                activateBoost();
             }
         }
     });

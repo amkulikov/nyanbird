@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flappy Bird 3D — First Person</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen active">
+            <h1>FLAPPY BIRD <span class="accent">3D</span></h1>
+            <p class="subtitle">First Person Mode</p>
+            <div class="instructions">
+                <p>Tap / Space / Click to flap</p>
+                <p>Fly through the gaps between pipes</p>
+            </div>
+            <button id="start-btn" class="btn">START</button>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="hidden">
+            <div id="score-display">0</div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameover-screen" class="screen hidden">
+            <h2>GAME OVER</h2>
+            <div class="final-score">
+                <span class="label">Score</span>
+                <span id="final-score-value">0</span>
+            </div>
+            <div class="best-score">
+                <span class="label">Best</span>
+                <span id="best-score-value">0</span>
+            </div>
+            <button id="restart-btn" class="btn">RETRY</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

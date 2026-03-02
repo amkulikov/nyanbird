@@ -357,6 +357,7 @@
     const pipes = [];
     const boostOrbs = [];
     let pipesSinceLastOrb = 0;
+    let lastGapCenter = 0; // track previous gap center for reachability
 
     const pipeRadius = CONFIG.pipeWidth / 2;
     const capRadius = pipeRadius + 0.2;
@@ -364,9 +365,19 @@
     function createPipe(zPos) {
         const group = new THREE.Group();
         const gap = state.pipeGap;
-        const gapCenter =
-            CONFIG.pipeHeightRange.min +
-            Math.random() * (CONFIG.pipeHeightRange.max - CONFIG.pipeHeightRange.min);
+
+        // Max reachable vertical shift between consecutive pipes.
+        // Time between pipes = pipeSpacing / forwardSpeed.
+        // Going UP:   max rise  = flapForce * T  (spam flap)
+        // Going DOWN: max drop ≈ same magnitude  (gravity + max-fall cap)
+        // 0.75 safety factor accounts for non-ideal entry velocity.
+        const T = CONFIG.pipeSpacing / state.forwardSpeed;
+        const maxShift = CONFIG.flapForce * T * 0.75;
+
+        const lo = Math.max(CONFIG.pipeHeightRange.min, lastGapCenter - maxShift);
+        const hi = Math.min(CONFIG.pipeHeightRange.max, lastGapCenter + maxShift);
+        const gapCenter = lo + Math.random() * (hi - lo);
+        lastGapCenter = gapCenter;
         const halfGap = gap / 2;
 
         // Bottom pipe
@@ -548,6 +559,7 @@
         boostOrbs.forEach((o) => scene.remove(o));
         boostOrbs.length = 0;
         pipesSinceLastOrb = 0;
+        lastGapCenter = 0;
 
         for (let i = 0; i < CONFIG.pipeCount; i++) {
             pipes.push(createPipe(-(20 + i * CONFIG.pipeSpacing)));

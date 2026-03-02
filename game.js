@@ -25,7 +25,7 @@
         gapPerLevel: 0.15,
 
         // Boost
-        boostDuration: 10,
+        boostDuration: 3,
         boostSpeedMul: 2.2,
         boostOrbChance: 0.075,
 
@@ -762,6 +762,8 @@
         // Play the real Nyan Cat OGG file
         boostAudio = new Audio('nyancat.ogg');
         boostAudio.volume = 0.5;
+        // Start from a random point between 2–6 seconds
+        boostAudio.currentTime = 2 + Math.random() * 4;
         boostAudio.play().catch(() => {});
     }
 

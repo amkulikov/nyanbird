@@ -356,6 +356,7 @@
     // ==================== PIPES ====================
     const pipes = [];
     const boostOrbs = [];
+    let pipesSinceLastOrb = 0;
 
     const pipeRadius = CONFIG.pipeWidth / 2;
     const capRadius = pipeRadius + 0.2;
@@ -508,6 +509,8 @@
 
     // Spawn orb BETWEEN two pipes, off the optimal flight line
     function maybeSpawnOrbBetween(pipeA, pipeB) {
+        pipesSinceLastOrb++;
+        if (pipesSinceLastOrb < 5) return;
         if (Math.random() > CONFIG.boostOrbChance) return;
 
         // Optimal flight line goes from gapA center to gapB center.
@@ -536,6 +539,7 @@
         }
 
         spawnBoostOrb(midZ, orbY);
+        pipesSinceLastOrb = 0;
     }
 
     function initPipes() {
@@ -543,6 +547,7 @@
         pipes.length = 0;
         boostOrbs.forEach((o) => scene.remove(o));
         boostOrbs.length = 0;
+        pipesSinceLastOrb = 0;
 
         for (let i = 0; i < CONFIG.pipeCount; i++) {
             pipes.push(createPipe(-(20 + i * CONFIG.pipeSpacing)));
